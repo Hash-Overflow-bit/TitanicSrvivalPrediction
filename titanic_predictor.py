@@ -70,7 +70,10 @@ class TitanicPredictor:
         # Fill missing ages based on title
         title_ages = df.groupby('Title')['Age'].median()
         for title in df['Title'].unique():
-            df.loc[(df['Age'].isnull()) & (df['Title'] == title), 'Age'] = title_ages[title]
+            if pd.notna(title_ages.get(title)):
+                df.loc[(df['Age'].isnull()) & (df['Title'] == title), 'Age'] = title_ages[title]
+        # Fill any remaining missing ages with overall median
+        df['Age'].fillna(df['Age'].median(), inplace=True)
         
         # Create age groups
         df['AgeGroup'] = pd.cut(df['Age'], bins=[0, 12, 18, 35, 60, 100], 
@@ -87,7 +90,7 @@ class TitanicPredictor:
         df['Fare'].fillna(df['Fare'].median(), inplace=True)
         
         # Create fare bins
-        df['FareBin'] = pd.qcut(df['Fare'], q=4, labels=['Low', 'Medium', 'High', 'VeryHigh'])
+        df['FareBin'] = pd.qcut(df['Fare'], q=4, labels=['Low', 'Medium', 'High', 'VeryHigh'], duplicates='drop')
         
         # Convert categorical to numerical
         df['Sex'] = df['Sex'].map({'male': 0, 'female': 1})
@@ -185,7 +188,9 @@ class TitanicPredictor:
             'SVM': SVC(kernel='rbf', random_state=42)
         }
         
-        X_scaled = self.scaler.fit_transform(X)
+        # Use a temporary scaler for comparison only
+        temp_scaler = StandardScaler()
+        X_scaled = temp_scaler.fit_transform(X)
         
         results = {}
         for name, model in models.items():
